@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>Loan Calculator</title>
+
+        <!-- Two libraries for exporting as PDF and jsquery librrary -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.1.1/jspdf.umd.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.13/jspdf.plugin.autotable.min.js"></script>
+        <style>
+            table{
+                border: 1px solid black;
+            }
+            table.center{
+                margin-left:auto;
+                margin-right:auto;
+                margin-top:25px;
+                margin-bottom:25px;
+            }
+            table.amortList{
+                margin-left:auto;
+                margin-right:auto;
+                margin-top:25px;
+                margin-bottom:25px;
+                border:1px solid black;
+                border-collapse: collapse;
+            }
+            td.amort, tr.amort, th.amort{
+                border: 1px solid black;
+                text-align: center;
+            }
+            p.p1 {
+                text-align: center;
+                margin: auto; /* top/bottom 25px, left/right 200px */
+            }
+            p.err {
+                text-align: center;
+                color:red;
+            }
+            h3.err {
+                text-align: center;
+                color:red;
+                margin-bottom: 5px;
+            }
+        </style>
+        <script type="text/javascript">
+            function calculateLoan() {
+                // Get Values
+                var totalAmount = document.getElementById('loanAmount').value;
+                var annualIntRate = document.getElementById('loanRate').value;
+                var periodicInterestRate = (annualIntRate / 100) / 12;
+                var numberOfPeriodicPayments =  document.getElementById('loanTermMonths').value;
+                var discountFactor;
+                discountFactor = ((1+periodicInterestRate) ** numberOfPeriodicPayments - 1) / (periodicInterestRate * (1 + periodicInterestRate) ** numberOfPeriodicPayments);
+    
+                var loanPayment = totalAmount / discountFactor;
+                
+                // Validate inputs
+                document.getElementById("inErrMsg").innerHTML = "";
+                document.getElementById("inErrMsg").style.display = "none";
+                var validInput = validateInputs(totalAmount,annualIntRate,numberOfPeriodicPayments);
+
+                // Clear output fields in case of recalculation
+                document.getElementById('monthlyPayments').value = "";
+                document.getElementById('totalPaid').value = "";
+                document.getElementById('interestPaid').value = "";
+                document.getElementById('amortListDiv').innerHTML = "";
+
+                // Display Values
+                if(validInput){
+                    document.getElementById('monthlyPayments').value = loanPayment.toFixed(2);
+                    document.getElementById('totalPaid').value = (loanPayment * numberOfPeriodicPayments).toFixed(2);
+                    document.getElementById('interestPaid').value = ((loanPayment * numberOfPeriodicPayments) - totalAmount).toFixed(2);
+                    
+                    // List ammortization
+                    document.getElementById("amortListDiv").innerHTML=
+                    amortList(totalAmount,periodicInterestRate,numberOfPeriodicPayments);
+                }
+            }
+
+            function validateInputs(totAmount,intRate,term){
+                var div = document.getElementById("inErrMsg");
+                var bool = false;
+                if(totAmount <= 0 || isNaN(totAmount) || totAmount == null || totAmount == "") {
+                    div.innerHTML +=
+                        "<h3 class='err'>Invalid Loan Amount</h3>" + 
+                        "<p class='err'>Please enter a valid number that is greater than 0.</p>";
+                    div.style.display = "block";
+                    bool = true;
+                }
+                if(term <= 0 || isNaN(term) || term == null || term == "") {
+                    div.innerHTML +=
+                        "<h3 class='err'>Invalid Loan Term</h3>" + 
+                        "<p class='err'>Please enter a valid number that is greater than 0.</p>";
+                    div.style.display = "block";
+                    bool = true;
+                }
+                if(intRate <= 0 || intRate >= 100 || isNaN(intRate) || intRate == null || intRate == "") {
+                    div.innerHTML +=
+                        "<h3 class='err'>Invalid Loan Interest Rate</h3>" + 
+                        "<p class='err'>Please enter a valid number that is between 0 and 100.</p>";
+                    div.style.display = "block";
+                    bool = true;
+                }
+                if (bool == true){
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+
+            function showAmortList() {
+                var div = document.getElementById("amortListDiv");
+                if (div.style.display === "none") {
+                    document.getElementById("showAmortBtn").value = "Hide Amortization";
+                    div.style.display = "block";
+                } else {
+                    document.getElementById("showAmortBtn").value = "View Amortization";
+                    div.style.display = "none";
+                }
+            }
+
+            function amortList(bal, pIntRt, term) {
+                var annualInterestRate = pIntRt * 12;
+
+                // calculate the payment
+                var payment = bal * (pIntRt/(1-Math.pow(1+pIntRt, -term)));
+
+                // header for the ammortized list
+                var aList = "<table class='amortList' id='amortListID'> <tr class='amort'><th class='amort'>Month #</th><th class='amort'>Remaining Balance</th>" + 
+                    "<th class='amort'>Interest</th><th class='amort'>Principal</th>";
+                
+                // calculate ammortized list
+                for(var count = 0; count < term; ++count) {
+                    var interest = 0;
+                    var principal = 0;
+
+                    // new row
+                    aList += "<tr class='amort'>";
+
+                    // month #
+                    aList += "<td class='amort'>" + (count + 1) + "</td>";
+
+                    // remaining balance
+                    aList += "<td class='amort'> $" + Number(bal).toFixed(2) + "</td>";
+
+                    // interest
+                    interest = bal * pIntRt;
+		            aList += "<td class='amort'> $" + Number(interest).toFixed(2) + "</td>";
+                    
+                    // principle
+                    principal = payment - interest;
+		            aList += "<td class='amort'> $" + Number(principal).toFixed(2) + "</td>";
+
+                    // end row
+                    aList += "</tr>";
+
+                    // update balance
+                    bal = bal - principal;	
+                }
+                // end table
+                aList += "</table>";
+
+                return aList;
+            }
+
+            //function for generating pdf
+            function generatePDF() {
+                //this is from jspdf library   
+                var doc = new jspdf.jsPDF()
+
+                //gets our amortlist table
+                doc.autoTable({ html: '#amortListID' })
+                
+                //saves as filename.pdf
+                doc.save('amortizedloan.pdf')
+        }
+        </script>
+    </head>
+    <body>
+        <h1 style="text-align: center;">Loan Calculator</h1>
+        <hr>
+        <p class="p1">A simple loan calculator to help you determine the monthly payments on a loan.<br><br>
+            Select whether you would like to calculate a Loan or a Mortgage.
+            Then, simply enter the loan amount, select the term (years or months)
+            and enter the number, and the interest rate.<br>
+            Then finally press "Calculate" to
+            view your results. You can also export the data to your email by pressing
+            "Export" or view it on the spreadsheet by pressing "View Amortization".
+        </p>
+        <hr>
+        <table class="center">
+            <tr>
+                <td><b>Loan Amount</b></td>
+                <td><input type="text" id="loanAmount" size=6></td></tr>
+            <tr>
+                <td><b>Loan Term <i>in months</i></b></td>
+                <td><input type="text" id="loanTermMonths" size=6></td></tr>
+            <tr>
+                <td><b>Loan Interest Rate</b></td>
+                <td><input type="text" id="loanRate" size=6></td></tr>
+            <tr>
+                <td>&nbsp;</td>
+                <td style="text-align: center;"><input type="button" value="Calculate" onclick="calculateLoan();"></td>
+            </tr>
+        </table>
+        <div id="inErrMsg" style="display: none;"></div>
+        <table class="center">
+            <tr>
+                <td style="text-align: right;"><b>Monthly Payments: </b></td>
+                <td><b>$</b><input type="text" id="monthlyPayments" size=6></td>
+            </tr>
+            <tr>
+                <td style="text-align: right;"><b>Total Paid: </b></td>
+                <td><b>$</b><input type="text" id="totalPaid" size=6></td>
+            </tr>
+            <tr>
+                <td style="text-align: right;"><b>Total Interest Paid: </b></td>
+                <td><b>$</b><input type="text" id="interestPaid" size=6></td>
+            </tr>
+            <tr>
+                <td><input type="button" id="showAmortBtn" value="View Amortization" onclick="showAmortList();"></td>
+                <td style="text-align: right;"><input type="button" value="Download as PDF" onclick="generatePDF()"></td>
+            </tr>
+        </table>
+        <hr>
+        <div id="amortListDiv" style="display: none;"></div>
+    </body>
+</html>
